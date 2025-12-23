@@ -1,3 +1,3 @@
-# terraform-azurerm-avm-template
+# terraform-azure-avm-utl-network-privatednszone-azapi-replicator
 
-This is a template repo for Terraform Azure Verified Modules.
+This is a Terraform module that replicates Azure Private DNS Zone functionality from the AzureRM provider to the AzAPI provider. It systematically converts each field, validation, and behavior from the AzureRM provider's Go source code into equivalent AzAPI resource configurations using Terraform locals and variables. The module ensures exact behavioral parity by replicating all provider-level logic including validations, defaults, ForceNew triggers, sensitive field handling, and post-creation operations that would otherwise be lost when migrating from `azurerm_*` resources to `azapi_resource` blocks.

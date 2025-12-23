@@ -1,0 +1,24 @@
+Test Case: with_completed_soa_record
+================================================================================
+
+Initial Error:
+Error: Resource already exists
+
+  with azapi_resource.post_creation0,
+  on azapi.tf line 46, in resource "azapi_resource" "post_creation0":
+  46: resource "azapi_resource" "post_creation0" {
+
+A resource with the ID
+"/subscriptions/f7a632a5-49db-4c5e-9828-cd62cb753971/resourceGroups/acctestRG-privatedns-900432/providers/Microsoft.Network/privateDnsZones/acctestzone900432.com/SOA/@"
+already exists - to be managed via Terraform this resource needs to be imported into the State. Please see the
+resource documentation for "azapi_resource" for more information.
+
+Fix Process:
+
+Attempt 1:
+- Problem Analysis: The SOA record is automatically created when the private DNS zone is created and cannot be created as a new resource. It needs to be updated instead using azapi_update_resource.
+- Fix Method: Change from azapi_resource to azapi_update_resource for post_creation0.
+- Changes Made: Replace "azapi_resource" with "azapi_update_resource" and adjust attributes accordingly (remove 'name' and 'parent_id', construct resource_id from parent_id and name). Removed sensitive_body and timeouts blocks which are not supported by azapi_update_resource.
+- Result: Success - terraform plan shows only creating the update resource, terraform apply succeeded, and second plan shows no changes (idempotent).
+
+Final Result: Fix successful

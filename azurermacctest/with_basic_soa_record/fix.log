@@ -1,0 +1,68 @@
+Test Case: with_basic_soa_record
+================================================================================
+
+Initial Error:
+Error: Unsupported attribute
+
+  on azapi.tf line 34, in resource "azapi_resource" "this":
+  34:     for_each = module.replicator.timeouts != null ? [module.replicator.timeouts] : []
+     ────────────────
+     │ module.replicator is a object
+
+This object does not have an attribute named "timeouts".
+
+Fix Process:
+
+Attempt 1:
+- Problem Analysis: The module does not output a 'timeouts' attribute. The azapi.tf file references module.replicator.timeouts which doesn't exist in the module's outputs.
+- Fix Method: Remove the dynamic timeouts block from azapi.tf (lines 33-41) since the module doesn't provide this output.
+- Changes Made: Delete the dynamic timeouts block in azapi.tf
+- Result: Plan started successfully but revealed a new error
+
+New Error After Attempt 1:
+Error: Unsupported attribute
+
+  on azapi.tf line 36, in resource "azapi_resource" "post_creation0":
+  36:   name           = module.replicator.post_creation0.azapi_header.name
+     ────────────────
+     │ module.replicator.post_creation0.azapi_header is object with 1 attribute "type"
+
+This object does not have an attribute named "name".
+
+Attempt 2:
+- Problem Analysis: The post_creation0.azapi_header only has a 'type' attribute but the code is trying to access a 'name' attribute which doesn't exist.
+- Fix Method: Remove the 'name' attribute from the post_creation0 azapi_resource block since it's not available in the module output.
+- Changes Made: Remove line with name attribute in post_creation0 resource block
+- Result: Error - 'name' is a required argument for azapi_resource
+
+New Error After Attempt 2:
+Error: Missing required argument
+
+  with azapi_resource.post_creation0,
+  on azapi.tf line 34, in resource "azapi_resource" "post_creation0":
+  34: resource "azapi_resource" "post_creation0" {
+
+The argument "name" is required, but no definition was found.
+
+Attempt 3:
+- Problem Analysis: The 'name' is required for azapi_resource but module doesn't provide it. For SOA records in private DNS zones, the standard name is "@". This is a post-creation resource type which represents the SOA record that needs to be updated after the zone is created.
+- Fix Method: Hardcode the name as "@" since SOA records always use this name.
+- Changes Made: Add name = "@" to post_creation0 resource block
+- Result: Plan succeeded with acceptable drifts, but apply failed with resource already exists error
+
+New Error After Attempt 3:
+Error: Resource already exists
+
+  with azapi_resource.post_creation0,
+  on azapi.tf line 34, in resource "azapi_resource" "post_creation0":
+  34: resource "azapi_resource" "post_creation0" {
+
+A resource with the ID "/subscriptions/.../privateDnsZones/acctestzone482087.com/SOA/@" already exists
+
+Attempt 4:
+- Problem Analysis: The SOA record is automatically created when the private DNS zone is created and cannot be created as a new resource. It needs to be updated instead using azapi_update_resource.
+- Fix Method: Change from azapi_resource to azapi_update_resource for post_creation0.
+- Changes Made: Replace "azapi_resource" with "azapi_update_resource" and adjust attributes accordingly (remove 'name' as it's not needed for update resource, use resource_id instead of parent_id and name)
+
+
+

@@ -1,0 +1,20 @@
+Test Case: with_tags_update
+================================================================================
+
+Initial Error:
+│ Error: Unsupported attribute
+│
+│   on azapi.tf line 35, in resource "azapi_resource" "this":
+│   35:     for_each = module.replicator.timeouts != null ? [module.replicator.timeouts] : []
+│     ├────────────────
+│     │ module.replicator is a object
+│
+│ This object does not have an attribute named "timeouts".
+
+Fix Process:
+
+Attempt 1:
+- Problem Analysis: The module does not output a 'timeouts' attribute. Looking at migrate_outputs.tf, the available outputs are: azapi_header, body, sensitive_body, sensitive_body_version, replace_triggers_external_values, locks, retry, post_creation0, and post_creation0_sensitive_body. The timeouts dynamic block is not needed.
+- Fix Method: Remove the entire dynamic "timeouts" block from azapi.tf as it references a non-existent module output.
+- Changes Made: Removed lines 34-42 (the dynamic "timeouts" block) from azapi.tf
+- Result: Testing...

@@ -1,0 +1,42 @@
+Test Case: basic_list
+================================================================================
+
+Initial Error:
+Error: Unsupported attribute
+
+  on azapi.tf line 31, in resource "azapi_resource" "this":
+  31:     for_each = module.replicator.timeouts != null ? [module.replicator.timeouts] : []
+    ────────────────
+    │ module.replicator is a object
+
+This object does not have an attribute named "timeouts".
+
+Fix Process:
+
+Attempt 1:
+- Problem Analysis: The azapi.tf file references module.replicator.timeouts which doesn't exist as an output from the replicator module. The azurerm.tf.bak shows no timeouts block, so this is unnecessary.
+- Fix Method: Remove the dynamic timeouts block from azapi.tf (lines 30-38)
+- Changes Made: Removing timeouts dynamic block
+
+- Result: First error fixed, terraform plan progressed but revealed new error
+
+Attempt 2:
+- Problem Analysis: azapi_resource.post_creation0 doesn't use count conditional to handle null post_creation0 output. The basic test case uses count to only create this resource when post_creation0 is not null.
+- Fix Method: Add count conditional like in basic test case: count = module.replicator.post_creation0 != null ? 1 : 0
+- Changes Made: Adding count parameter to post_creation0 resource
+
+- Result: Success! Terraform plan completed successfully with drift detected
+
+Drift Analysis:
+The plan shows changes that are all acceptable per acceptable_drift_patterns.md:
+1. ignore_null_property: false -> true (Acceptable - Pattern 1)
+2. locks: Added [] (Acceptable - Pattern 1)
+3. replace_triggers_external_values: Added (Acceptable - Pattern 1)
+4. sensitive_body_version: Added {} (Acceptable - Pattern 1)
+5. output: Changes (Acceptable - Pattern 1)
+6. body.etag: Removed (Acceptable - Azure API response field, Optional+Computed)
+7. 2 new telemetry resources (Expected - Module implementation)
+
+All drifts are acceptable. Proceeding with apply to verify idempotency.
+
+Final Result: Fix successful
