@@ -6,68 +6,104 @@ This deploys the module in its simplest form.
 
 ```hcl
 terraform {
-  required_version = "~> 1.5"
-
   required_providers {
+    azapi = {
+      source  = "Azure/azapi"
+      version = "~> 2.0"
+    }
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~> 4.21"
-    }
-    modtm = {
-      source  = "azure/modtm"
-      version = "~> 0.3"
+      version = "~> 4.0"
     }
     random = {
       source  = "hashicorp/random"
-      version = "~> 3.5"
+      version = "~> 3.0"
     }
   }
 }
 
 provider "azurerm" {
-  features {}
+  features {
+    resource_group {
+      prevent_deletion_if_contains_resources = true
+    }
+    key_vault {
+      purge_soft_delete_on_destroy    = true
+      recover_soft_deleted_key_vaults = true
+    }
+  }
 }
 
+provider "azapi" {}
 
-## Section to provide a random Azure region for the resource group
-# This allows us to randomize the region for the resource group.
-module "regions" {
-  source  = "Azure/avm-utl-regions/azurerm"
-  version = "~> 0.1"
+provider "random" {}
+
+resource "random_integer" "number" {
+  max = 99999
+  min = 10000
 }
 
-# This allows us to randomize the region for the resource group.
-resource "random_integer" "region_index" {
-  max = length(module.regions.regions) - 1
-  min = 0
-}
-## End of section to provide a random Azure region for the resource group
-
-# This ensures we have unique CAF compliant names for our resources.
-module "naming" {
-  source  = "Azure/naming/azurerm"
-  version = "~> 0.3"
+resource "azurerm_resource_group" "test" {
+  location = "eastus"
+  name     = "acctestRG-${random_integer.number.result}"
 }
 
-# This is required for resource modules
-resource "azurerm_resource_group" "this" {
-  location = module.regions.regions[random_integer.region_index.result].name
-  name     = module.naming.resource_group.name_unique
+module "replicator" {
+  source = "../.."
+
+  name                = "acctestzone${random_integer.number.result}.com"
+  resource_group_id   = azurerm_resource_group.test.id
+  resource_group_name = azurerm_resource_group.test.name
+  soa_record = {
+    email        = "testemail.com"
+    expire_time  = 2419200
+    minimum_ttl  = 200
+    refresh_time = 2600
+    retry_time   = 200
+    ttl          = 100
+    tags = {
+      ENv = "Test"
+    }
+  }
 }
 
-# This is the module call
-# Do not specify location here due to the randomization above.
-# Leaving location as `null` will cause the module to use the resource group location
-# with a data source.
-module "test" {
-  source = "../../"
+resource "azapi_resource" "this" {
+  location                         = module.replicator.azapi_header.location
+  name                             = module.replicator.azapi_header.name
+  parent_id                        = module.replicator.azapi_header.parent_id
+  type                             = module.replicator.azapi_header.type
+  body                             = module.replicator.body
+  ignore_null_property             = module.replicator.azapi_header.ignore_null_property
+  locks                            = module.replicator.locks
+  replace_triggers_external_values = module.replicator.replace_triggers_external_values
+  retry                            = module.replicator.retry
+  sensitive_body                   = module.replicator.sensitive_body
+  sensitive_body_version           = module.replicator.sensitive_body_version
+  tags                             = module.replicator.azapi_header.tags
 
-  # source             = "Azure/avm-<res/ptn>-<name>/azurerm"
-  # ...
-  location            = azurerm_resource_group.this.location
-  name                = "TODO" # TODO update with module.naming.<RESOURCE_TYPE>.name_unique
-  resource_group_name = azurerm_resource_group.this.name
-  enable_telemetry    = var.enable_telemetry # see variables.tf
+  dynamic "timeouts" {
+    for_each = module.replicator.timeouts != null ? [module.replicator.timeouts] : []
+
+    content {
+      create = timeouts.value.create
+      delete = timeouts.value.delete
+      read   = timeouts.value.read
+      update = timeouts.value.update
+    }
+  }
+}
+
+resource "azapi_update_resource" "post_creation0" {
+  resource_id = "${azapi_resource.this.id}/SOA/@"
+  type        = module.replicator.post_creation0.azapi_header.type
+  body        = module.replicator.post_creation0.body
+  locks       = module.replicator.post_creation0.locks
+
+  depends_on = [azapi_resource.this]
+
+  lifecycle {
+    ignore_changes = [body]
+  }
 }
 ```
 
@@ -76,20 +112,20 @@ module "test" {
 
 The following requirements are needed by this module:
 
-- <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) (~> 1.5)
+- <a name="requirement_azapi"></a> [azapi](#requirement\_azapi) (~> 2.0)
 
-- <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (~> 4.21)
+- <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (~> 4.0)
 
-- <a name="requirement_modtm"></a> [modtm](#requirement\_modtm) (~> 0.3)
-
-- <a name="requirement_random"></a> [random](#requirement\_random) (~> 3.5)
+- <a name="requirement_random"></a> [random](#requirement\_random) (~> 3.0)
 
 ## Resources
 
 The following resources are used by this module:
 
-- [azurerm_resource_group.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) (resource)
-- [random_integer.region_index](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/integer) (resource)
+- [azapi_resource.this](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) (resource)
+- [azapi_update_resource.post_creation0](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/update_resource) (resource)
+- [azurerm_resource_group.test](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) (resource)
+- [random_integer.number](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/integer) (resource)
 
 <!-- markdownlint-disable MD013 -->
 ## Required Inputs
@@ -108,7 +144,7 @@ If it is set to false, then no telemetry will be collected.
 
 Type: `bool`
 
-Default: `true`
+Default: `false`
 
 ## Outputs
 
@@ -118,21 +154,9 @@ No outputs.
 
 The following Modules are called:
 
-### <a name="module_naming"></a> [naming](#module\_naming)
+### <a name="module_replicator"></a> [replicator](#module\_replicator)
 
-Source: Azure/naming/azurerm
-
-Version: ~> 0.3
-
-### <a name="module_regions"></a> [regions](#module\_regions)
-
-Source: Azure/avm-utl-regions/azurerm
-
-Version: ~> 0.1
-
-### <a name="module_test"></a> [test](#module\_test)
-
-Source: ../../
+Source: ../..
 
 Version:
 
