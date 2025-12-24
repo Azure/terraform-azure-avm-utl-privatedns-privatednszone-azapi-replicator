@@ -1,6 +1,5 @@
 output "azapi_header" {
-  depends_on = []
-  value      = local.azapi_header
+  value = local.azapi_header
 }
 
 output "body" {

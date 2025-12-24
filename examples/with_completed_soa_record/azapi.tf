@@ -3,6 +3,7 @@ module "replicator" {
 
   name              = "acctestzone${random_integer.number.result}.com"
   resource_group_id = azurerm_resource_group.test.id
+  enable_telemetry  = var.enable_telemetry
   soa_record = {
     email        = "testemail.com"
     expire_time  = 2419200
